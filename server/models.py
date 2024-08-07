@@ -37,13 +37,12 @@ class Event(db.Model, SerializerMixin):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     image = db.Column(db.BLOB, nullable=False)
     name = db.Column(db.String, nullable=False)
-    date = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    time = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    datetime = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     location = db.Column(db.PickleType, nullable=False)
     capacity = db.Column(db.Integer, nullable=False)
     description = db.Column(db.Text)
 
-    serialize_only = ('id', 'image', 'name', 'date', 'time', 'location', 'capacity', 'description')
+    serialize_only = ('id', 'image', 'name', 'datetime', 'location', 'capacity', 'description')
     exclude = ('user_events', 'feedback', 'tickets', 'event_organizers')
 
     def __repr__(self):
