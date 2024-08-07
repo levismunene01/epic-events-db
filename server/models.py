@@ -4,18 +4,6 @@ import datetime
 
 db = SQLAlchemy()
 
-class Role(db.Model, SerializerMixin):
-    __tablename__ = 'roles'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String, unique=True, nullable=False)
-
-    serialize_only = ('id', 'name')
-    exclude = ('users',)
-
-    def __repr__(self):
-        return f'<Role {self.id}, {self.name}>'
-
 class User(db.Model, SerializerMixin):
     __tablename__ = 'users'
 
@@ -23,10 +11,9 @@ class User(db.Model, SerializerMixin):
     email = db.Column(db.String, unique=True, nullable=False)
     username = db.Column(db.String, unique=True, nullable=False)
     password_hash = db.Column(db.String, nullable=False)
-    role_id = db.Column(db.Integer, db.ForeignKey('roles.id'), nullable=False)
 
     serialize_only = ('id', 'email', 'username')
-    exclude = ('orders', 'role')
+    exclude = ('orders')
 
     def __repr__(self):
         return f'<User {self.id}, {self.username}>'
@@ -35,10 +22,10 @@ class Event(db.Model, SerializerMixin):
     __tablename__ = 'events'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    image = db.Column(db.BLOB, nullable=False)
+    image = db.Column(db.LargeBinary, nullable=False)
     name = db.Column(db.String, nullable=False)
     datetime = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    location = db.Column(db.PickleType, nullable=False)
+    location = db.Column(db.Text, nullable=False)
     capacity = db.Column(db.Integer, nullable=False)
     description = db.Column(db.Text)
 

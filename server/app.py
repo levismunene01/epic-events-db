@@ -1,17 +1,21 @@
 from flask import Flask, make_response, request, jsonify
 from flask_migrate import Migrate
 from flask_restful import Api, Resource
-from models import db, Role, User, Event, UserEvent, Feedback, Ticket, EventOrganizer
+from models import db, User, Event, UserEvent, Feedback, Ticket, EventOrganizer
 from flask_cors import CORS
+import os
+
 
 app = Flask(__name__)
-cors = CORS(app, origins='*')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///events.db'
+os.environ['DATABASE_URL'] = 'postgresql://epic_events_z6wl_user:CndecxpLEos242Bi80iODMgrvMSoymqC@dpg-cqplpv5svqrc73fu470g-a.oregon-postgres.render.com/epic_events_z6wl'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.json.compact = False
 
 migrate = Migrate(app, db)
 db.init_app(app)
+
+cors = CORS(app, origins='*')
 
 api = Api(app)
 
@@ -21,11 +25,6 @@ class Home(Resource):
             "message": "Welcome to the Events RESTful API",
         }
         return make_response(response_dict, 200)
-
-class Roles(Resource):
-    def get(self):
-        roles = Role.query.all()
-        return [role.to_dict() for role in roles], 200
 
 class Users(Resource):
     def get(self):
@@ -58,7 +57,6 @@ class EventOrganizers(Resource):
         return [event_organizer.to_dict() for event_organizer in event_organizers], 200
 
 api.add_resource(Home, '/')
-api.add_resource(Roles, '/roles')
 api.add_resource(Users, '/users')
 api.add_resource(Events, '/events')
 api.add_resource(UserEvents, '/user_events')

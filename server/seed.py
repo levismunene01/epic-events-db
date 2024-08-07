@@ -1,10 +1,10 @@
 from app import app
-from models import db, Role, User, Event, UserEvent, Feedback, Ticket, EventOrganizer
+from models import db, User, Event, UserEvent, Feedback, Ticket, EventOrganizer
 import datetime
 
 with app.app_context():
     print("Deleting data...")
-    Role.query.delete()
+    User.query.delete()
     User.query.delete()
     Event.query.delete()
     UserEvent.query.delete()
@@ -14,19 +14,10 @@ with app.app_context():
     
     db.session.commit()
 
-    print("Creating roles...")
-    roles = [
-        Role(name='Admin'),
-        Role(name='User')
-    ]
-
-    db.session.add_all(roles)
-    db.session.commit()
-
     print("Creating users...")
     users = [
-        User(email='admin@example.com', username='admin', password_hash='password', role_id=1),
-        User(email='user@example.com', username='user', password_hash='password', role_id=2)
+        User(email='admin@example.com', username='admin', password_hash='password'),
+        User(email='user@example.com', username='user', password_hash='password')
     ]
 
     db.session.add_all(users)
@@ -34,8 +25,8 @@ with app.app_context():
 
     print("Creating events...")
     events = [
-        Event(image=b'event1_image', name='Event 1', datetime=datetime.datetime(2023, 3, 1, 10, 0, 0), location=(40.7128, -74.0060), capacity=100, description='Event 1 description'),
-        Event(image=b'event2_image', name='Event 2', datetime=datetime.datetime(2023, 3, 15, 14, 0, 0), location=(34.0522, -118.2437), capacity=200, description='Event 2 description')
+        Event(image=b'event1_image', name='Event 1', datetime=datetime.datetime(2023, 3, 1, 10, 0, 0), location='New York, USA', capacity=100, description='Event 1 description'),
+        Event(image=b'event2_image', name='Event 2', datetime=datetime.datetime(2023, 3, 15, 14, 0, 0), location='Los Angeles, USA', capacity=200, description='Event 2 description')
     ]
 
     db.session.add_all(events)
