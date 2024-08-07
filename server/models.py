@@ -22,7 +22,7 @@ class Event(db.Model, SerializerMixin):
     __tablename__ = 'events'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    image = db.Column(db.LargeBinary, nullable=False)
+    image = db.Column(db.String, nullable=False)
     name = db.Column(db.String, nullable=False)
     datetime = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     location = db.Column(db.Text, nullable=False)
