@@ -1,7 +1,7 @@
 from flask import Flask, make_response, request, jsonify
 from flask_migrate import Migrate
 from flask_restful import Api, Resource
-from models import db, User, Event, UserEvent, Feedback, Ticket, EventOrganizer
+from .models import db, User, Event, UserEvent, Feedback, Ticket, EventOrganizer
 from flask_cors import CORS
 import os
 
@@ -31,10 +31,28 @@ class Users(Resource):
         users = User.query.all()
         return [user.to_dict() for user in users], 200
 
+    def post(self):
+        data = request.json
+        if 'name' not in data or 'email' not in data:
+            return {'error': 'Missing required fields'}, 400
+        user = User(name=data['name'], email=data['email'])
+        db.session.add(user)
+        db.session.commit()
+        return user.to_dict(), 201
+
 class Events(Resource):
     def get(self):
         events = Event.query.all()
         return [event.to_dict() for event in events], 200
+
+    def post(self):
+        data = request.json
+        if 'name' not in data or 'date' not in data or 'location' not in data:
+            return {'error': 'Missing required fields'}, 400
+        event = Event(name=data['name'], date=data['date'], location=data['location'])
+        db.session.add(event)
+        db.session.commit()
+        return event.to_dict(), 201
 
 class UserEvents(Resource):
     def get(self):
@@ -46,10 +64,28 @@ class Feedbacks(Resource):
         feedbacks = Feedback.query.all()
         return [feedback.to_dict() for feedback in feedbacks], 200
 
+    def post(self):
+        data = request.json
+        if 'rating' not in data or 'comment' not in data or 'event_id' not in data:
+            return {'error': 'Missing required fields'}, 400
+        feedback = Feedback(rating=data['rating'], comment=data['comment'], event_id=data['event_id'])
+        db.session.add(feedback)
+        db.session.commit()
+        return feedback.to_dict(), 201
+
 class Tickets(Resource):
     def get(self):
         tickets = Ticket.query.all()
         return [ticket.to_dict() for ticket in tickets], 200
+
+    def post(self):
+        data = request.json
+        if 'price' not in data or 'event_id' not in data:
+            return {'error': 'Missing required fields'}, 400
+        ticket = Ticket(price=data['price'], event_id=data['event_id'])
+        db.session.add(ticket)
+        db.session.commit()
+        return ticket.to_dict(), 201
 
 class EventOrganizers(Resource):
     def get(self):

@@ -1,5 +1,5 @@
 from app import app
-from models import db, User, Event, UserEvent, Feedback, Ticket, EventOrganizer
+from .models import db, User, Event, UserEvent, Feedback, Ticket, EventOrganizer
 import datetime
 
 with app.app_context():
