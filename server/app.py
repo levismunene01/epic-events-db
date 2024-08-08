@@ -49,7 +49,7 @@ class Events(Resource):
 
     def post(self):
         data = request.json
-        if 'name' not in data or 'datetime' not in data or 'location' not in data:
+        if 'capacity' not in data or 'name' not in data or 'image' not in data or 'location' not in data or 'description' not in data:
             return {'error': 'Missing required fields'}, 400
         event = Event(image=data['image'],name=data['name'], datetime=data['datetime'], location=data['location'], capacity=data['capacity'], description=data['description'])
         db.session.add(event)
