@@ -24,7 +24,7 @@ class Event(db.Model, SerializerMixin):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     image = db.Column(db.String, nullable=False)
     name = db.Column(db.String, nullable=False)
-    datetime = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    datetime = db.Column(db.Text)
     location = db.Column(db.Text, nullable=False)
     capacity = db.Column(db.Integer, nullable=False)
     description = db.Column(db.Text)
@@ -42,6 +42,8 @@ class UserEvent(db.Model, SerializerMixin):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, unique=True)
     event_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=False, unique=True)
     ticket_number = db.Column(db.Integer, nullable=False)
+    user = db.relationship('User', backref=db.backref('user_events', cascade='all, delete-orphan'))
+    event = db.relationship('Event', backref=db.backref('user_events', cascade='all, delete-orphan'))
 
     serialize_only = ('id', 'user_id', 'event_id', 'ticket_number')
     exclude = ('user', 'event')
@@ -57,6 +59,8 @@ class Feedback(db.Model, SerializerMixin):
     event_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=False)
     feedback = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    event = db.relationship('Event', backref=db.backref('feedback', cascade='all, delete-orphan'))
+    user = db.relationship('User', backref=db.backref('feedback', cascade='all, delete-orphan'))
 
     serialize_only = ('id', 'user_id', 'event_id', 'feedback', 'created_at')
     exclude = ('user', 'event')
@@ -71,6 +75,8 @@ class Ticket(db.Model, SerializerMixin):
     event_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=False)
     ticket_number = db.Column(db.Integer, nullable=False)
     price = db.Column(db.Float, nullable=False)
+    event = db.relationship('Event', backref=db.backref('tickets', cascade='all, delete-orphan'))
+    
 
     serialize_only = ('id', 'event_id', 'ticket_number', 'price')
     exclude = ('event',)
@@ -84,6 +90,9 @@ class EventOrganizer(db.Model, SerializerMixin):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     event_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=False, unique=True)
     organizer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, unique=True)
+    event = db.relationship('Event', backref=db.backref('event_organizers', cascade='all, delete-orphan'))
+    organizer = db.relationship('User', backref=db.backref('event_organizers', cascade='all, delete-orphan'))
+                                                           
 
     serialize_only = ('id', 'event_id', 'organizer_id')
     exclude = ('event', 'organizer')

@@ -1,7 +1,7 @@
 from flask import Flask, make_response, request, jsonify
 from flask_migrate import Migrate
 from flask_restful import Api, Resource
-from .models import db, User, Event, UserEvent, Feedback, Ticket, EventOrganizer
+from models import db, User, Event, UserEvent, Feedback, Ticket, EventOrganizer
 from flask_cors import CORS
 import os
 import sys
@@ -35,12 +35,14 @@ class Users(Resource):
 
     def post(self):
         data = request.json
-        if 'username' not in data or 'email' not in data:
+        if 'username' not in data or 'email' not in data or 'password_hash' not in data:
             return {'error': 'Missing required fields'}, 400
         user = User(username=data['username'], email=data['email'],password_hash=data['password_hash'])
         db.session.add(user)
         db.session.commit()
         return user.to_dict(), 201
+    
+    
 
 class Events(Resource):
     def get(self):
@@ -55,6 +57,46 @@ class Events(Resource):
         db.session.add(event)
         db.session.commit()
         return event.to_dict(), 201
+    
+    def patch(self):
+        data = request.json
+        id = data.get('id')
+        if id is None:
+            return {'error': 'Missing event ID'}, 400
+
+        event = Event.query.get(id)
+        if event is None:
+            return {'error': 'Event not found'}, 404
+
+        if 'name' in data:
+            event.name = data['name']
+        if 'image' in data:
+            event.image = data['image']
+        if 'datetime' in data:
+            event.datetime = data['datetime']
+        if 'location' in data:
+            event.location = data['location']
+        if 'description' in data:
+            event.description = data['description']
+        if 'capacity' in data:
+            event.capacity = data['capacity']
+
+        db.session.commit()
+        return event.to_dict(), 200
+    
+    def delete(self):
+        data = request.json
+        id = data.get('id')
+        if id is None:
+            return {'error': 'Missing event ID'}, 400
+
+        event = Event.query.get(id)
+        if event is None:
+            return {'error': 'Event not found'}, 404
+
+        db.session.delete(event)
+        db.session.commit()
+        return {'message': 'Event deleted successfully'}, 200
 
 class UserEvents(Resource):
     def get(self):
