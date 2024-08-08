@@ -4,6 +4,8 @@ from flask_restful import Api, Resource
 from models import db, User, Event, UserEvent, Feedback, Ticket, EventOrganizer
 from flask_cors import CORS
 import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 
 app = Flask(__name__)
