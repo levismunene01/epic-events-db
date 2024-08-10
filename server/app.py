@@ -1,26 +1,42 @@
 from flask import Flask, make_response, request, jsonify
 from flask_migrate import Migrate
 from flask_restful import Api, Resource
-from .models import db, User, Event, UserEvent, Feedback, Ticket, EventOrganizer
+from models import db, User, Event, UserEvent, Feedback, Ticket, EventOrganizer
 from flask_cors import CORS
+from werkzeug.security import generate_password_hash, check_password_hash
+import re
 import os
 import sys
-sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+from dotenv import load_dotenv
 
+# Load environment variables from a .env file
+load_dotenv()
 
 app = Flask(__name__)
-os.environ['DATABASE_URL'] = 'postgresql://epic_events_z6wl_user:CndecxpLEos242Bi80iODMgrvMSoymqC@dpg-cqplpv5svqrc73fu470g-a.oregon-postgres.render.com/epic_events_z6wl'
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.json.compact = False
 
 migrate = Migrate(app, db)
 db.init_app(app)
 
-cors = CORS(app, origins='*')
+cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
 api = Api(app)
 
+# Utility functions for validation and error handling
+def validate_email(email):
+    regex = r'^\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+    return re.match(regex, email)
+
+def handle_db_commit(session):
+    try:
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        return str(e), 500
+
+# Resources
 class Home(Resource):
     def get(self):
         response_dict = {
@@ -35,14 +51,23 @@ class Users(Resource):
 
     def post(self):
         data = request.json
-        if 'username' not in data or 'email' not in data or 'password_hash' not in data:
+        email = data.get('email')
+        username = data.get('username')
+        password = data.get('password')
+
+        if not username or not email or not password:
             return {'error': 'Missing required fields'}, 400
-        user = User(username=data['username'], email=data['email'],password_hash=data['password_hash'])
+
+        if not validate_email(email):
+            return {'error': 'Invalid email format'}, 400
+
+        password_hash = generate_password_hash(password)
+        user = User(username=username, email=email, password_hash=password_hash)
         db.session.add(user)
-        db.session.commit()
+        error = handle_db_commit(db.session)
+        if error:
+            return {'error': 'Failed to create user: ' + error[0]}, error[1]
         return user.to_dict(), 201
-    
-    
 
 class Events(Resource):
     def get(self):
@@ -51,13 +76,23 @@ class Events(Resource):
 
     def post(self):
         data = request.json
-        if 'capacity' not in data or 'name' not in data or 'image' not in data or 'location' not in data or 'description' not in data:
+        if not all([data.get('name'), data.get('image'), data.get('location'), data.get('description'), data.get('capacity')]):
             return {'error': 'Missing required fields'}, 400
-        event = Event(image=data['image'],name=data['name'], datetime=data['datetime'], location=data['location'], capacity=data['capacity'], description=data['description'])
+
+        event = Event(
+            image=data['image'],
+            name=data['name'],
+            datetime=data.get('datetime'),
+            location=data['location'],
+            capacity=data['capacity'],
+            description=data['description']
+        )
         db.session.add(event)
-        db.session.commit()
+        error = handle_db_commit(db.session)
+        if error:
+            return {'error': 'Failed to create event: ' + error[0]}, error[1]
         return event.to_dict(), 201
-    
+
     def patch(self):
         data = request.json
         id = data.get('id')
@@ -81,7 +116,9 @@ class Events(Resource):
         if 'capacity' in data:
             event.capacity = data['capacity']
 
-        db.session.commit()
+        error = handle_db_commit(db.session)
+        if error:
+            return {'error': 'Failed to update event: ' + error[0]}, error[1]
         return event.to_dict(), 200
     
     def delete(self):
@@ -95,7 +132,9 @@ class Events(Resource):
             return {'error': 'Event not found'}, 404
 
         db.session.delete(event)
-        db.session.commit()
+        error = handle_db_commit(db.session)
+        if error:
+            return {'error': 'Failed to delete event: ' + error[0]}, error[1]
         return {'message': 'Event deleted successfully'}, 200
 
 class UserEvents(Resource):
@@ -114,7 +153,9 @@ class Feedbacks(Resource):
             return {'error': 'Missing required fields'}, 400
         feedback = Feedback(feedback=data['feedback'], event_id=data['event_id'], user_id=data['user_id'])
         db.session.add(feedback)
-        db.session.commit()
+        error = handle_db_commit(db.session)
+        if error:
+            return {'error': 'Failed to create feedback: ' + error[0]}, error[1]
         return feedback.to_dict(), 201
 
 class Tickets(Resource):
@@ -128,7 +169,9 @@ class Tickets(Resource):
             return {'error': 'Missing required fields'}, 400
         ticket = Ticket(price=data['price'], ticket_number=data['ticket_number'], event_id=data['event_id'])
         db.session.add(ticket)
-        db.session.commit()
+        error = handle_db_commit(db.session)
+        if error:
+            return {'error': 'Failed to create ticket: ' + error[0]}, error[1]
         return ticket.to_dict(), 201
 
 class EventOrganizers(Resource):

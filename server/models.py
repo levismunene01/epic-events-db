@@ -13,7 +13,7 @@ class User(db.Model, SerializerMixin):
     password_hash = db.Column(db.String, nullable=False)
 
     serialize_only = ('id', 'email', 'username')
-    exclude = ('orders')
+    exclude = ('orders',)
 
     def __repr__(self):
         return f'<User {self.id}, {self.username}>'
@@ -24,7 +24,7 @@ class Event(db.Model, SerializerMixin):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     image = db.Column(db.String, nullable=False)
     name = db.Column(db.String, nullable=False)
-    datetime = db.Column(db.Text)
+    datetime = db.Column(db.DateTime)  # Changed from Text to DateTime
     location = db.Column(db.Text, nullable=False)
     capacity = db.Column(db.Integer, nullable=False)
     description = db.Column(db.Text)
@@ -39,8 +39,8 @@ class UserEvent(db.Model, SerializerMixin):
     __tablename__ = 'user_events'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, unique=True)
-    event_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=False, unique=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    event_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=False)
     ticket_number = db.Column(db.Integer, nullable=False)
     user = db.relationship('User', backref=db.backref('user_events', cascade='all, delete-orphan'))
     event = db.relationship('Event', backref=db.backref('user_events', cascade='all, delete-orphan'))
@@ -73,13 +73,14 @@ class Ticket(db.Model, SerializerMixin):
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     event_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # Added user_id to link ticket to a user
     ticket_number = db.Column(db.Integer, nullable=False)
     price = db.Column(db.Float, nullable=False)
     event = db.relationship('Event', backref=db.backref('tickets', cascade='all, delete-orphan'))
-    
+    user = db.relationship('User', backref=db.backref('tickets', cascade='all, delete-orphan'))
 
-    serialize_only = ('id', 'event_id', 'ticket_number', 'price')
-    exclude = ('event',)
+    serialize_only = ('id', 'event_id', 'user_id', 'ticket_number', 'price')
+    exclude = ('event', 'user')
 
     def __repr__(self):
         return f'<Ticket {self.id}, {self.event_id}>'
@@ -88,11 +89,10 @@ class EventOrganizer(db.Model, SerializerMixin):
     __tablename__ = 'event_organizers'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    event_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=False, unique=True)
-    organizer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, unique=True)
+    event_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=False)
+    organizer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     event = db.relationship('Event', backref=db.backref('event_organizers', cascade='all, delete-orphan'))
     organizer = db.relationship('User', backref=db.backref('event_organizers', cascade='all, delete-orphan'))
-                                                           
 
     serialize_only = ('id', 'event_id', 'organizer_id')
     exclude = ('event', 'organizer')
