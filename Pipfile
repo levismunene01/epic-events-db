@@ -14,6 +14,9 @@ python-dotenv = "*"
 flask = "*"
 flask-sqlalchemy = "*"
 werkzeug = "*"
+google-auth = "*"
+google-auth-oauthlib = "*"
+google-auth-httplib2 = "*"
 
 [dev-packages]
 

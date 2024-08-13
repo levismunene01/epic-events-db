@@ -1,13 +1,13 @@
 from flask import Flask, make_response, request, jsonify
 from flask_migrate import Migrate
 from flask_restful import Api, Resource
-from models import db, User, Event, UserEvent, Feedback, Ticket, EventOrganizer
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
+from sqlalchemy.exc import IntegrityError
 import re
 import os
-import sys
 from dotenv import load_dotenv
+from models import db, User, Event, UserEvent, Ticket, EventOrganizer
 
 # Load environment variables from a .env file
 load_dotenv()
@@ -36,6 +36,12 @@ def handle_db_commit(session):
         session.rollback()
         return str(e), 500
 
+# Middleware to handle current user (assuming token-based authentication)
+@app.before_request
+def get_current_user():
+    token = request.headers.get('Authorization')
+    request.user = get_user_from_token(token) if token else None
+
 # Resources
 class Home(Resource):
     def get(self):
@@ -46,8 +52,23 @@ class Home(Resource):
 
 class Users(Resource):
     def get(self):
-        users = User.query.all()
-        return [user.to_dict() for user in users], 200
+        data = request.json
+        email = data.get('email')
+        password = data.get('password')
+
+        if not email or not password:
+            return {'error': 'Missing email or password'}, 400
+
+        # Validate email format
+        if not validate_email(email):
+            return {'error': 'Invalid email format'}, 400
+
+        user = User.query.filter_by(email=email).first()
+
+        if not user or not check_password_hash(user.password_hash, password):
+            return {'error': 'Invalid email or password'}, 401
+
+        return user.to_dict(), 200
 
     def post(self):
         data = request.json
@@ -61,12 +82,25 @@ class Users(Resource):
         if not validate_email(email):
             return {'error': 'Invalid email format'}, 400
 
+        # Check if the email already exists
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
+            return {'error': 'User already exists with this email'}, 409
+
+        is_admin = email.endswith('@admin.com')
         password_hash = generate_password_hash(password)
-        user = User(username=username, email=email, password_hash=password_hash)
-        db.session.add(user)
-        error = handle_db_commit(db.session)
-        if error:
-            return {'error': 'Failed to create user: ' + error[0]}, error[1]
+        user = User(username=username, email=email, password_hash=password_hash, is_admin=is_admin)
+        
+        try:
+            db.session.add(user)
+            db.session.commit()  # Commit the transaction
+        except IntegrityError as e:
+            db.session.rollback()  # Rollback the transaction on error
+            return {'error': 'User already exists with this email'}, 409
+        except Exception as e:
+            db.session.rollback()
+            return {'error': 'Failed to create user: ' + str(e)}, 500
+
         return user.to_dict(), 201
 
 class Events(Resource):
@@ -75,8 +109,11 @@ class Events(Resource):
         return [event.to_dict() for event in events], 200
 
     def post(self):
+        if not request.user or not request.user.is_admin:
+            return {'error': 'Admin privileges required'}, 403
+
         data = request.json
-        if not all([data.get('name'), data.get('image'), data.get('location'), data.get('description'), data.get('capacity')]):
+        if not all([data.get('name'), data.get('image'), data.get('location'), data.get('description'), data.get('capacity'), data.get('number_of_tickets')]):
             return {'error': 'Missing required fields'}, 400
 
         event = Event(
@@ -85,7 +122,8 @@ class Events(Resource):
             datetime=data.get('datetime'),
             location=data['location'],
             capacity=data['capacity'],
-            description=data['description']
+            description=data['description'],
+            number_of_tickets=data['number_of_tickets']
         )
         db.session.add(event)
         error = handle_db_commit(db.session)
@@ -94,6 +132,9 @@ class Events(Resource):
         return event.to_dict(), 201
 
     def patch(self):
+        if not request.user or not request.user.is_admin:
+            return {'error': 'Admin privileges required'}, 403
+
         data = request.json
         id = data.get('id')
         if id is None:
@@ -115,6 +156,8 @@ class Events(Resource):
             event.description = data['description']
         if 'capacity' in data:
             event.capacity = data['capacity']
+        if 'number_of_tickets' in data:
+            event.number_of_tickets = data['number_of_tickets']
 
         error = handle_db_commit(db.session)
         if error:
@@ -122,6 +165,9 @@ class Events(Resource):
         return event.to_dict(), 200
     
     def delete(self):
+        if not request.user or not request.user.is_admin:
+            return {'error': 'Admin privileges required'}, 403
+
         data = request.json
         id = data.get('id')
         if id is None:
@@ -142,21 +188,14 @@ class UserEvents(Resource):
         user_events = UserEvent.query.all()
         return [user_event.to_dict() for user_event in user_events], 200
 
-class Feedbacks(Resource):
-    def get(self):
-        feedbacks = Feedback.query.all()
-        return [feedback.to_dict() for feedback in feedbacks], 200
-
-    def post(self):
-        data = request.json
-        if 'event_id' not in data or 'feedback' not in data or 'user_id' not in data:
-            return {'error': 'Missing required fields'}, 400
-        feedback = Feedback(feedback=data['feedback'], event_id=data['event_id'], user_id=data['user_id'])
-        db.session.add(feedback)
-        error = handle_db_commit(db.session)
-        if error:
-            return {'error': 'Failed to create feedback: ' + error[0]}, error[1]
-        return feedback.to_dict(), 201
+    def get_user_events(self, user_id):
+        user = User.query.get(user_id)
+        if not user:
+            return {'error': 'User not found'}, 404
+        
+        user_events = UserEvent.query.filter_by(user_id=user_id).all()
+        events = [user_event.event.to_dict() for user_event in user_events]
+        return events, 200
 
 class Tickets(Resource):
     def get(self):
@@ -179,13 +218,33 @@ class EventOrganizers(Resource):
         event_organizers = EventOrganizer.query.all()
         return [event_organizer.to_dict() for event_organizer in event_organizers], 200
 
+class AdminActions(Resource):
+    def patch(self):
+        if not request.user or not request.user.is_admin:
+            return {'error': 'Admin privileges required'}, 403
+
+        data = request.json
+        user_id = data.get('user_id')
+        if not user_id:
+            return {'error': 'User ID is required'}, 400
+
+        user = User.query.get(user_id)
+        if not user:
+            return {'error': 'User not found'}, 404
+
+        user.is_active = False  # Assuming you add an 'is_active' field to the User model
+        error = handle_db_commit(db.session)
+        if error:
+            return {'error': 'Failed to deactivate user: ' + error[0]}, error[1]
+        return {'message': 'User account deactivated successfully'}, 200
+
 api.add_resource(Home, '/')
 api.add_resource(Users, '/users')
 api.add_resource(Events, '/events')
 api.add_resource(UserEvents, '/user_events')
-api.add_resource(Feedbacks, '/feedbacks')
 api.add_resource(Tickets, '/tickets')
 api.add_resource(EventOrganizers, '/event_organizers')
+api.add_resource(AdminActions, '/admin_actions')
 
 if __name__ == '__main__':
     app.run(port=5555, debug=True)
