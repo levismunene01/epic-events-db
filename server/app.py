@@ -53,7 +53,7 @@ class Home(Resource):
 class Users(Resource):
     def get(self):
         data = request.json
-        email = data.get('email')
+        email = data.get('email').lower()  # Ensure email is in lowercase
         password = data.get('password')
 
         if not email or not password:
@@ -69,6 +69,7 @@ class Users(Resource):
             return {'error': 'Invalid email or password'}, 401
 
         return user.to_dict(), 200
+
 
     def post(self):
         data = request.json
