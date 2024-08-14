@@ -17,6 +17,8 @@ werkzeug = "*"
 google-auth = "*"
 google-auth-oauthlib = "*"
 google-auth-httplib2 = "*"
+requests = "*"
+flask-jwt-extended = {extras = ["blacklist"], version = "*"}
 
 [dev-packages]
 

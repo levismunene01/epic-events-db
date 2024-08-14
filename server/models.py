@@ -1,6 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy_serializer import SerializerMixin
 import datetime
+from werkzeug.security import generate_password_hash, check_password_hash
 
 db = SQLAlchemy()
 
@@ -11,8 +12,8 @@ class User(db.Model, SerializerMixin):
     email = db.Column(db.String, unique=True, nullable=False)
     username = db.Column(db.String, unique=True, nullable=False)
     password_hash = db.Column(db.String, nullable=False)
-    is_admin = db.Column(db.Boolean, default=False)  # New field for admin check
-    is_active = db.Column(db.Boolean, default=True)  # Optional field for deactivating accounts
+    is_admin = db.Column(db.Boolean, default=False)
+    is_active = db.Column(db.Boolean, default=True)
 
     user_events = db.relationship('UserEvent', backref='user')
 
@@ -21,6 +22,12 @@ class User(db.Model, SerializerMixin):
 
     def __repr__(self):
         return f'<User {self.id}, {self.username}, is_admin={self.is_admin}, is_active={self.is_active}>'
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
 
 class Event(db.Model, SerializerMixin):
     __tablename__ = 'events'
